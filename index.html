@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Orçamento de Decoração</title>
+<style>
+:root {
+  --fundo: #f5f0e6; /* nude */
+  --azul: #4169e1; /* azul royal */
+  --azul-claro: #e6ebff;
+}
+body { font-family: Arial,sans-serif; background:var(--fundo); margin:0; padding:0;}
+.container { max-width:900px; margin:20px auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1); position:relative;}
+h1,h2,h3{text-align:center; margin:10px 0;}
+input,button,select{width:100%;padding:10px;margin:5px 0;border-radius:5px;border:1px solid #ccc;}
+button{background:var(--azul); color:white; border:none; cursor:pointer;}
+button:hover{background:#27408b;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px;}
+.produto,.orcamentoCard{border:1px solid #ddd;padding:10px;border-radius:8px;text-align:center; background:white;}
+.produto img,.orcamentoCard img{width:100%;height:120px;object-fit:cover;border-radius:5px;}
+.adminBtn{position:absolute; top:10px; right:10px; font-size:12px; padding:5px 10px; background:#333; color:#fff;}
+section{display:none;}
+.activeSection{display:block;}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Ferramenta de Orçamentos</h1>
+
+<!-- Botão de administrador -->
+<button class="adminBtn" onclick="acessarAdmin()">Admin</button>
+
+<!-- Tela de Cadastro -->
+<section id="cadastroSec" class="activeSection">
+<h2>Cadastro do Cliente</h2>
+<input type="text" id="nome" placeholder="Nome">
+<input type="text" id="numero" placeholder="Número">
+<input type="email" id="email" placeholder="Email">
+<input type="text" id="cidade" placeholder="Cidade">
+<button onclick="cadastroCliente()">Continuar</button>
+</section>
+
+<!-- Tela de Categorias -->
+<section id="categoriasSec">
+<h2>Escolha uma Categoria</h2>
+<div class="grid">
+  <button onclick="selecionarCategoria('cortinas')">Cortinas</button>
+  <button onclick="selecionarCategoria('persianas')">Persianas</button>
+  <button onclick="selecionarCategoria('papel')">Papéis de Parede</button>
+  <button onclick="selecionarCategoria('tapetes')">Tapetes</button>
+</div>
+</section>
+
+<!-- Tela de Catálogo de produtos -->
+<section id="catalogoSec">
+<h2>Catálogo</h2>
+<div id="produtosCatalogo" class="grid"></div>
+</section>
+
+<!-- Tela de inserir metragem -->
+<section id="metragemSec">
+<h2>Digite a metragem</h2>
+<p id="produtoSelecionado"></p>
+<input type="number" id="metragemInput" placeholder="Metragem (m²)">
+<button onclick="gerarOrcamento()">Gerar Orçamento</button>
+</section>
+
+<!-- Tela de Orçamento -->
+<section id="orcamentoSec">
+<h2>Orçamento</h2>
+<div id="orcamentoDiv"></div>
+<button onclick="reiniciarFluxo()">Fazer outro orçamento</button>
+</section>
+
+<!-- Tela de Admin -->
+<section id="adminSec">
+<h2>Painel de Administração</h2>
+<select id="categoriaEdit" onchange="mostrarProdutosAdmin(this.value)">
+  <option value="">Selecione uma categoria</option>
+  <option value="cortinas">Cortinas</option>
+  <option value="persianas">Persianas</option>
+  <option value="papel">Papéis de Parede</option>
+  <option value="tapetes">Tapetes</option>
+</select>
+<div id="produtosAdmin" class="grid"></div>
+<button onclick="sairAdmin()">Sair do Admin</button>
+</section>
+
+<script>
+// Produtos fictícios
+let produtos = {
+  cortinas:[
+    {id:1,nome:'Cortina Blackout Lux',preco:120,foto:'https://via.placeholder.com/150x120?text=Cortina+1',mao_obra:50,margem:30},
+    {id:2,nome:'Cortina Voil Simples',preco:80,foto:'https://via.placeholder.com/150x120?text=Cortina+2',mao_obra:30,margem:25},
+    {id:3,nome:'Cortina Romana',preco:150,foto:'https://via.placeholder.com/150x120?text=Cortina+3',mao_obra:60,margem:35}
+  ],
+  persianas:[
+    {id:1,nome:'Persiana PVC',preco:90,foto:'https://via.placeholder.com/150x120?text=Persiana+1',mao_obra:40,margem:25},
+    {id:2,nome:'Persiana Alumínio',preco:110,foto:'https://via.placeholder.com/150x120?text=Persiana+2',mao_obra:50,margem:30}
+  ],
+  papel:[
+    {id:1,nome:'Papel de Parede Moderno',preco:80,foto:'https://via.placeholder.com/150x120?text=Papel+1',mao_obra:30,margem:20},
+    {id:2,nome:'Papel Texturizado',preco:100,foto:'https://via.placeholder.com/150x120?text=Papel+2',mao_obra:40,margem:25}
+  ],
+  tapetes:[
+    {id:1,nome:'Tapete Luxo',preco:150,foto:'https://via.placeholder.com/150x120?text=Tapete+1',mao_obra:60,margem:35},
+    {id:2,nome:'Tapete Simples',preco:90,foto:'https://via.placeholder.com/150x120?text=Tapete+2',mao_obra:40,margem:25}
+  ]
+};
+
+let categoriaAtual = '';
+let produtoAtual = null;
+
+// Fluxos de exibição
+function mostrarSec(id){
+  ['cadastroSec','categoriasSec','catalogoSec','metragemSec','orcamentoSec','adminSec'].forEach(s=>document.getElementById(s).style.display='none');
+  document.getElementById(id).style.display='block';
+}
+
+// Cadastro
+function cadastroCliente(){
+  const cliente = {
+    nome: document.getElementById('nome').value,
+    numero: document.getElementById('numero').value,
+    email: document.getElementById('email').value,
+    cidade: document.getElementById('cidade').value
+  };
+  if(!cliente.nome || !cliente.numero || !cliente.email || !cliente.cidade){alert('Preencha todos os campos'); return;}
+  localStorage.setItem('cliente',JSON.stringify(cliente));
+  mostrarSec('categoriasSec');
+}
+
+// Selecionar categoria cliente
+function selecionarCategoria(categoria){
+  categoriaAtual = categoria;
+  mostrarProdutosCatalogo(categoria);
+  mostrarSec('catalogoSec');
+}
+
+// Mostrar catálogo de produtos
+function mostrarProdutosCatalogo(categoria){
+  const div = document.getElementById('produtosCatalogo');
+  div.innerHTML='';
+  produtos[categoria].forEach(p=>{
+    const pd = document.createElement('div');
+    pd.className='produto';
+    pd.innerHTML=`<img src="${p.foto}" alt="${p.nome}">
+                  <h3>${p.nome}</h3>
+                  <p>R$ ${p.preco}/m²</p>
+                  <button onclick="selecionarProduto(${p.id})">Selecionar</button>`;
+    div.appendChild(pd);
+  });
+}
+
+// Selecionar produto
+function selecionarProduto(id){
+  produtoAtual = produtos[categoriaAtual].find(p=>p.id===id);
+  document.getElementById('produtoSelecionado').innerText = `Produto selecionado: ${produtoAtual.nome}`;
+  document.getElementById('metragemInput').value = '';
+  mostrarSec('metragemSec');
+}
+
+// Gerar orçamento
+function gerarOrcamento(){
+  const metragem = Number(document.getElementById('metragemInput').value);
+  if(!metragem){alert('Digite a metragem'); return;}
+  const valorBase = metragem * produtoAtual.preco;
+  const valorMaoObra = valorBase + produtoAtual.mao_obra;
+  const valorFinal = valorMaoObra + (valorMaoObra * produtoAtual.margem /100);
+
+  const div = document.getElementById('orcamentoDiv');
+  div.innerHTML=`<div class="orcamentoCard">
+    <img src="${produtoAtual.foto}" alt="${produtoAtual.nome}">
+    <h3>${produtoAtual.nome}</h3>
+    <p>Metragem: ${metragem} m²</p>
+    <p>Preço/m²: R$ ${produtoAtual.preco}</p>
+    <p>Mão de obra: R$ ${produtoAtual.mao_obra}</p>
+    <h3>Total: R$ ${valorFinal.toFixed(2)}</h3>
+    <button onclick="window.open('https://www.empresa-parceira.com', '_blank')">Obtenha desconto</button>
+  </div>`;
+  mostrarSec('orcamentoSec');
+}
+
+// Reiniciar fluxo
+function reiniciarFluxo(){ mostrarSec('categoriasSec'); }
+
+// ADMIN
+
+function acessarAdmin(){
+  const senha = prompt("Digite a senha de administrador:");
+  if(senha === "Taffer"){
+    mostrarSec('adminSec');
+  } else alert("Senha incorreta!");
+}
+
+function mostrarProdutosAdmin(categoria){
+  const div = document.getElementById('produtosAdmin');
+  div.innerHTML='';
+  if(!categoria) return;
+  produtos[categoria].forEach(p=>{
+    const pd = document.createElement('div');
+    pd.className='produto';
+    pd.innerHTML=`<img src="${p.foto}" alt="${p.nome}">
+                  <input type="text" value="${p.nome}" placeholder="Nome" id="nome${categoria}${p.id}">
+                  <input type="number" value="${p.preco}" placeholder="Preço/m²" id="preco${categoria}${p.id}">
+                  <input type="number" value="${p.mao_obra}" placeholder="Mão de obra" id="mao${categoria}${p.id}">
+                  <input type="number" value="${p.margem}" placeholder="Margem (%)" id="margem${categoria}${p.id}">
+                  <input type="text" value="${p.foto}" placeholder="URL da imagem" id="foto${categoria}${p.id}">
+                  <button onclick="salvarProduto('${categoria}',${p.id})">Salvar</button>`;
+    div.appendChild(pd);
+  });
+}
+
+function salvarProduto(categoria,id){
+  const p = produtos[categoria].find(prod=>prod.id===id);
+  p.nome = document.getElementById(`nome${categoria}${id}`).value;
+  p.preco = Number(document.getElementById(`preco${categoria}${id}`).value);
+  p.mao_obra = Number(document.getElementById(`mao${categoria}${id}`).value);
+  p.margem = Number(document.getElementById(`margem${categoria}${id}`).value);
+  p.foto = document.getElementById(`foto${categoria}${id}`).value;
+  alert('Produto salvo!');
+}
+
+function sairAdmin(){ mostrarSec('cadastroSec'); }
+
+// Inicializa na tela de cadastro
+mostrarSec('cadastroSec');
+</script>
+</body>
+</html>
